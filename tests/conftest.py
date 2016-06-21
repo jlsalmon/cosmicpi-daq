@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # This file is part of CosmicPi-DAQ.
-# Copyright (C) 2016 CosmicPi.
+# Copyright (C) 2016 Justin Lewis Salmon.
 #
 # CosmicPi-DAQ is free software; you can redistribute it
 # and/or modify it under the terms of the GNU General Public License as
@@ -19,18 +19,12 @@
 # MA 02111-1307, USA.
 
 
-include *.rst
-include *.sh
-include .dockerignore
-include .editorconfig
-include .tx/config
-include LICENSE
-include babel.ini
-include pytest.ini
-recursive-include cosmicpi_daq *.conf
-recursive-include cosmicpi_daq *.po *.pot *.mo
-recursive-include docs *.bat
-recursive-include docs *.py
-recursive-include docs *.rst
-recursive-include docs Makefile
-recursive-include tests *.py
+"""Pytest configuration."""
+
+from __future__ import absolute_import, print_function
+
+import pytest
+
+# @pytest.fixture()
+# def foo():
+#     """Foo fixture."""

@@ -18,19 +18,12 @@
 # Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston,
 # MA 02111-1307, USA.
 
+"""Version information for CosmicPi-DAQ.
 
-include *.rst
-include *.sh
-include .dockerignore
-include .editorconfig
-include .tx/config
-include LICENSE
-include babel.ini
-include pytest.ini
-recursive-include cosmicpi_daq *.conf
-recursive-include cosmicpi_daq *.po *.pot *.mo
-recursive-include docs *.bat
-recursive-include docs *.py
-recursive-include docs *.rst
-recursive-include docs Makefile
-recursive-include tests *.py
+This file is imported by ``cosmicpi_daq.__init__``,
+and parsed by ``setup.py``.
+"""
+
+from __future__ import absolute_import, print_function
+
+__version__ = "0.0.1.dev20160621"

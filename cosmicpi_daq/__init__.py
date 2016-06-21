@@ -18,19 +18,16 @@
 # Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston,
 # MA 02111-1307, USA.
 
+"""Data acquisition package for reading data from CosmicPi."""
 
-include *.rst
-include *.sh
-include .dockerignore
-include .editorconfig
-include .tx/config
-include LICENSE
-include babel.ini
-include pytest.ini
-recursive-include cosmicpi_daq *.conf
-recursive-include cosmicpi_daq *.po *.pot *.mo
-recursive-include docs *.bat
-recursive-include docs *.py
-recursive-include docs *.rst
-recursive-include docs Makefile
-recursive-include tests *.py
+from __future__ import absolute_import, print_function
+
+from .cosmicpi import main
+from .cli import main as cli
+from .version import __version__
+
+__all__ = (
+    'main',
+    'cli',
+    '__version__',
+)
