@@ -107,7 +107,7 @@ class Detector(object):
 
             # Check if we should handle the event.
             # if set(event.keys()) & self.events:
-            self.handle_event(evt)
+            self.handle_event(event)
 
             if self.debug:
                 log.debug(sensor)

@@ -39,13 +39,12 @@ class Event(object):
         return """
 
         Detector......: {0.detector_id}
-        Sequence......: {0.sequence}
         Barometer.....: {0.barometer}
         Thermometer...: {0.temperature}
         Location......: {0.location}
         Vibration.....: {0.vibration}
         Accelerometer.: {0.accelerometer}
-        Magnetometer..: {0.megnetometer}
+        Magnetometer..: {0.magnetometer}
         Timing........: {0.timing}
         Status........: {0.status}
         Event.........: {0.event}

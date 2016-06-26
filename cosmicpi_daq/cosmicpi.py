@@ -39,23 +39,18 @@ to it.
 
 from __future__ import absolute_import, print_function
 
-import argparse
-import logging.config
-import os
-import sys
-import time
-import traceback
 import threading
+import time
 
 import click
 
 from .command_handler import CommandHandler
-from .config import arg, load_config, print_config
+from .config import load_config
 from .detector import Detector
-from .logging import logger
 from .event_publisher import EventPublisher
-from .usb_handler import USBHandler
+from .logging import logger
 from .simulator import USBSimulator
+from .usb_handler import USBHandler
 
 
 @click.group()

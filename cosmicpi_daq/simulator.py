@@ -20,6 +20,8 @@
 
 """Simulate a CosmicPi USB device."""
 
+from __future__ import absolute_import
+
 import json
 import random
 import time
