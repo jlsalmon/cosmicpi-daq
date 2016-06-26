@@ -30,7 +30,7 @@ import serial
 from .logging import logger as log
 
 
-class UsbHandler(object):
+class USBHandler(object):
 
     def __init__(self, usbdev, baudrate, timeout):
         self.usbdev = usbdev

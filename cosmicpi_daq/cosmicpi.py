@@ -54,7 +54,8 @@ from .config import arg, load_config, print_config
 from .detector import Detector
 from .logging import logger
 from .event_publisher import EventPublisher
-from .usb_handler import UsbHandler
+from .usb_handler import USBHandler
+from .simulator import USBSimulator
 
 
 @click.group()
@@ -114,19 +115,11 @@ def start(ctx, broker, publish, usb, vibration, weather, cosmics, command_socket
         click.exit(1)
 
     try:
-        # usb_handler = UsbHandler(usb, 9600, 60)
-        # usb_handler.open()
-        class Foo(object):
-            def readline(self):
-                return ''
 
-            def write(self, *args, **kwargs):
-                pass
-
-            def close(self, *args, **kwargs):
-                pass
-
-        usb_handler = Foo()
+        # FIXME: add explicit simulator option
+        # If the USB device is not defined, we switch to simulation mode
+        usb_handler = USBHandler(usb, 9600, 60) if usb else USBSimulator()
+        usb_handler.open()
 
     except Exception:
         logger.error('cosmicpi: could not connect to USB "{0}"'.format(
