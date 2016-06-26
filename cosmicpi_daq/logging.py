@@ -18,14 +18,10 @@
 # Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston,
 # MA 02111-1307, USA.
 
-"""Data acquisition package for reading data from CosmicPi."""
+"""Define default CosmicPi logging."""
 
 from __future__ import absolute_import, print_function
 
-from .cosmicpi import cli
-from .version import __version__
+import logging
 
-__all__ = (
-    'cli',
-    '__version__',
-)
+logger = logging.getLogger('cosmicpi.daq')

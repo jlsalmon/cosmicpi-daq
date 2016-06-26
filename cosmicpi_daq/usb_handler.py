@@ -20,13 +20,14 @@
 
 """USB handler implementation."""
 
-import logging
+from __future__ import absolute_import, print_function
+
 import termios
 import time
 
 import serial
 
-log = logging.getLogger(__name__)
+from .logging import logger as log
 
 
 class UsbHandler(object):

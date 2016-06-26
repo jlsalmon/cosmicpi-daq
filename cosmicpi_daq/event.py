@@ -27,10 +27,9 @@ import time
 class Event(object):
     """Wrapper around a cosmic event."""
 
-    def __init__(self, detector_id, sequence_number, sensors):
+    def __init__(self, detector_id, sensors):
         """Combine sensor data with information about a detector."""
         self.detector_id = detector_id
-        self.sequence = {"number": sequence_number}
         self.date = {"date": time.asctime(time.gmtime(time.time()))}
         self.event = None
         self.__dict__.update(sensors.__dict__)

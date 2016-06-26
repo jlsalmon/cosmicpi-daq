@@ -21,45 +21,20 @@
 """Publish event via AMQP."""
 
 import json
-import logging
 
 import pika
-from pika.exceptions import ConnectionClosed, ProbableAuthenticationError
-
-log = logging.getLogger(__name__)
 
 
 class EventPublisher(object):
     """Publish events."""
 
-    def __init__(self, options):
+    def __init__(self, broker):
         """Create new connection and channel."""
-        host = options.broker["host"]
-        port = options.broker["port"]
-        username = options.broker["username"]
-        password = options.broker["password"]
-
-        try:
-            self.connection = pika.BlockingConnection(
-                pika.ConnectionParameters(
-                    host=host,
-                    port=port,
-                    credentials=pika.PlainCredentials(username, password)
-                )
-            )
-            self.channel = self.connection.channel()
-            self.channel.exchange_declare(exchange='events', type='fanout')
-        except (ConnectionClosed, ProbableAuthenticationError) as e:
-            log.error(
-                "Fatal: Couldn't establish a connection to the broker. "
-                "Please check the connection parameters."
-            )
-            log.error(
-                "Fatal: Connection parameters were: {0}:{1}@{2}:{3}".format(
-                    username, password, host, port
-                )
-            )
-            raise e
+        self.connection = pika.BlockingConnection(
+            pika.URLParameters(broker)
+        )
+        self.channel = self.connection.channel()
+        self.channel.exchange_declare(exchange='events', type='fanout')
 
     def send_event_pkt(self, pkt):
         """Publish an event."""

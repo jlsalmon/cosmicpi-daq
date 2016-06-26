@@ -41,109 +41,122 @@ from __future__ import absolute_import, print_function
 
 import argparse
 import logging.config
+import os
 import sys
 import time
 import traceback
+import threading
+
+import click
 
 from .command_handler import CommandHandler
 from .config import arg, load_config, print_config
 from .detector import Detector
+from .logging import logger
 from .event_publisher import EventPublisher
 from .usb_handler import UsbHandler
 
 
-def main():
-    """Main entry point."""
-    main_parser = argparse.ArgumentParser(
-        prog="cosmicpi",
-        description="CosmicPi acquisition process",
-        add_help=False)
-    main_parser.add_argument(
-        "--config",
-        help="Path to configuration file",
-        default="/etc/cosmicpi.yaml")
-    args, remaining_argv = main_parser.parse_known_args()
-
+@click.group()
+@click.option('-c', '--config', type=click.File())
+@click.option('--debug/--no-debug', default=False)
+@click.pass_context
+def cli(ctx, config, debug):
+    """CosmicPi acquisition process."""
     # Merge the default config with the configuration file
-    config = load_config(args.config)
+    ctx.obj = {}
+    if config:
+        ctx.obj.update({
+            key.upper(): value for key, value in load_config(config)
+        })
 
-    # Parse the command line for overrides
-    parser = argparse.ArgumentParser(parents=[main_parser])
-    parser.set_defaults(**config)
+    ctx.obj['DEBUG'] = debug
 
-    parser.add_argument(
-        "-i", "--host", **arg("broker.host", "Message broker host"))
-    parser.add_argument("-p", "--port", **arg("broker.port",
-                                              "Message broker port", type=int))
-    parser.add_argument("-a", "--username", **
-                        arg("broker.username", "Message broker username"))
-    parser.add_argument("-b", "--password", **
-                        arg("broker.password", "Message broker password"))
-    parser.add_argument("-n", "--no-publish", **
-                        arg("broker.enabled", "Disable event publication"))
-    parser.add_argument("-u", "--usb", **arg("usb.device", "USB device name"))
-    parser.add_argument("-d", "--debug", **arg("debug", "Enable debug mode"))
-    parser.add_argument("-o", "--log-config", **
-                        arg("logging.config", "Path to logging configuration"))
-    parser.add_argument("-l", "--no-log", **
-                        arg("logging.enabled", "Disable file logging"))
-    parser.add_argument("-v",
-                        "--no-vib",
-                        **arg("monitoring.vibration",
-                              "Disable vibration monitoring"))
-    parser.add_argument("-w",
-                        "--no-weather",
-                        **arg("monitoring.weather",
-                              "Disable weather monitoring"))
-    parser.add_argument("-c",
-                        "--no-cosmics",
-                        **arg("monitoring.cosmics",
-                              "Disable cosmic ray monitoring"))
-    parser.add_argument("-k", "--patk", **arg(
-        "patok", "Server push notification token"
-    ))
+@cli.command()
+@click.option('--command-socket', type=click.Path(),
+              default='cosmicpi-daq.sock')
+@click.pass_context
+def status(ctx, command_socket):
+    """Display the status of the CosmicPi detector."""
+    if command_socket:
+        # try to connect
+        pass
 
-    options = parser.parse_args()
 
-    log_config = options.logging["config"]
-    print("INFO: using logging configuration from %s" % log_config)
-    logging.config.fileConfig(log_config, disable_existing_loggers=False)
-    console = logging.getLogger(__name__)
-
-    if options.debug:
-        print_config(options)
+@cli.command()
+@click.option('--broker', help='AMQP broker URI',
+              default='amqp://test:test@cosmicpi-alpha.gotdns.ch:8080')
+@click.option('--publish/--no-publish', default=True)
+@click.option('-u', '--usb', help='USB device name')
+@click.option('--vibration/--no-vibration', default=True)
+@click.option('--weather/--no-weather', default=True)
+@click.option('--cosmics/--no-cosmics', default=True)
+@click.option('--command-socket', type=click.Path(),
+              default='cosmicpi-daq.sock')  # FIXME add PID as extension
+@click.pass_context
+def start(ctx, broker, publish, usb, vibration, weather, cosmics, command_socket):
+    """Start the acquisition process."""
+    debug = ctx.obj.get('DEBUG', False)
+    events = set()
+    if weather:
+        events.add('temperature')
+    if vibration:
+        events.add('vibration')
+    if cosmics:
+        events.add('event')
 
     try:
-        publisher = EventPublisher(options)
-    except:
-        console.error("Exception: Can't connect to broker")
-        sys.exit(1)
+        publisher = EventPublisher(broker)
+    except Exception:
+        logger.error('cosmicpi: could not connect to broker "{0}"'.format(
+            broker
+        ))
+        click.exit(1)
 
     try:
-        usb = UsbHandler(options.usb['device'], 9600, 60)
-        usb.open()
-    except Exception as e:
-        console.error("Exception: Can't open USB device: %s" % e)
-        sys.exit(1)
+        # usb_handler = UsbHandler(usb, 9600, 60)
+        # usb_handler.open()
+        class Foo(object):
+            def readline(self):
+                return ''
 
-    detector = Detector(usb, publisher, options)
+            def write(self, *args, **kwargs):
+                pass
 
+            def close(self, *args, **kwargs):
+                pass
+
+        usb_handler = Foo()
+
+    except Exception:
+        logger.error('cosmicpi: could not connect to USB "{0}"'.format(
+            usb
+        ))
+        click.exit(1)
+
+    detector = Detector(usb_handler, publisher, debug, events=events)
+    handlers = (
+        detector,
+        CommandHandler(detector, usb_handler, command_socket),
+    )
     try:
-        detector.start()
-        command_handler = CommandHandler(detector, usb, options)
-        command_handler.start()
+        threads = [threading.Thread(target=target) for target in handlers]
+        for thread in threads:
+            thread.daemon = True
+            thread.start()
 
         while True:
             time.sleep(1)
 
-    except Exception as e:
-        console.info("Exception: main: %s" % e)
-        traceback.print_exc()
-
+    except Exception:
+        logger.exception('cosmicpi: unexpected exception')
     finally:
         detector.stop()
-        console.info("Quitting ...")
+        threads[0].join()
+        # FIXME gracefully quit command handler
+        # for index, thread in enumerate(threads):
+        #     handlers[index].stop()
+        #     thread.join()
         time.sleep(1)
-        usb.close()
+        usb_handler.close()
         publisher.close()
-        sys.exit(0)

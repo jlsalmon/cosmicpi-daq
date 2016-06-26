@@ -23,15 +23,12 @@
 from __future__ import absolute_import
 
 import json
-import logging
 import threading
 
 import netifaces
 
 from .event import Event
-
-logfile = logging.getLogger('file')
-log = logging.getLogger(__name__)
+from .logging import logger as log
 
 
 class Sensors(object):
@@ -78,94 +75,53 @@ class Sensors(object):
 
 class Detector(object):
 
-    def __init__(self, usb, sio, options):
-        self.usb = usb
-        self.sio = sio
-        self.options = options
+    def __init__(self, usb_handler, publisher, debug, events=None):
+        self.events = set(events or ('vibration', 'temperature', 'event'))
+        self.usb_handler = usb_handler
+        self.publisher = publisher
+        self.debug = debug
 
         self.sensors = Sensors()
 
         self.detector_id = self.get_detector_id()
 
-        self.thread = threading.Thread(target=self.run, args=(), kwargs={})
-        self.thread.daemon = True
         self.stopping = False
 
-        self.events = 0
-        self.vbrts = 0
-        self.weathers = 0
+    @property
+    def event(self):
+        """Return new Event instance with current data."""
+        return Event(self.detector_id, self.sensors)
 
-        self.sequence_number = 0
-
-    def get_next_sequence(self):
-        self.sequence_number += 1
-        return self.sequence_number
-
-    def start(self):
-        self.thread.start()
-
-    def run(self):
+    def __call__(self):
+        """Handle incoming events."""
         while not self.stopping:
-            line = self.usb.readline()
-            self.sio.connection.process_data_events()
+            line = self.usb_handler.readline()
+            self.publisher.connection.process_data_events()
 
             sensor = self.sensors.update(line)
             if not sensor:
                 continue
 
-            if self.options.monitoring['vibration'] and 'vibration' in sensor:
-                evt = Event(
-                    self.detector_id,
-                    self.get_next_sequence(),
-                    self.sensors)
-                self.vbrts += 1
-                log.info("Vibration event: %s" % evt)
-                self.handle_event(evt)
-                continue
+            event = self.event
+            log.info('Event: {0}'.format(event))
 
-            if self.options.monitoring['weather'] and 'temperature' in sensor:
-                evt = Event(
-                    self.detector_id,
-                    self.get_next_sequence(),
-                    self.sensors)
-                self.weathers += 1
-                log.info("Weather event: %s" % evt)
-                self.handle_event(evt)
-                continue
+            # Check if we should handle the event.
+            # if set(event.keys()) & self.events:
+            self.handle_event(evt)
 
-            if self.options.monitoring['cosmics'] and 'event' in sensor:
-                evt = Event(
-                    self.detector_id,
-                    self.get_next_sequence(),
-                    self.sensors)
-                self.events += 1
-                log.info("Cosmic event: %s" % evt)
-                self.handle_event(evt)
-                continue
-
-            if self.options.debug:
+            if self.debug:
                 log.debug(sensor)
-            # else:
-            #     ts = time.strftime("%d/%b/%Y %H:%M:%S",
-            #                        time.gmtime(time.time()))
-            #     tim = evt.timing
-            #     sts = evt.status
-            #     s = "cosmic_pi:uptime:%s :queue_size:%s "
-            #          "time_string:[%s] %s    \r" % (
-            #     tim["uptime"], sts["queue_size"], ts, tim["time_string"])
-            #     sys.stdout.write(s)
-            #     sys.stdout.flush()
 
     def stop(self):
         log.info("Stopping detector thread")
         self.stopping = True
-        self.thread.join()
 
     def handle_event(self, event):
-        if self.options.broker['enabled']:
-            self.sio.send_event_pkt(event.to_json())
-        if self.options.logging['enabled']:
-            logfile.info(event.to_json())
+        data = event.to_json()
+        if self.publisher:
+            self.publisher.send_event_pkt(data)
+        if self.debug:
+            log.debug(data)
 
     def get_detector_id(self):
         """Retrieve the unique identifier of this detector.

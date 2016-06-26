@@ -20,44 +20,42 @@
 
 """Data acquisition package for reading data from CosmicPi."""
 
-import logging
+from __future__ import absolute_import, print_function
+
 import os
 import socket
-import threading
 
-log = logging.getLogger(__name__)
+from .logging import logger as log
 
 
 class CommandHandler(object):
     """Command handler."""
 
-    def __init__(self, detector, usb, options):
+    def __init__(self, detector, usb_handler, command_socket):
         self.detector = detector
-        self.usb = usb
-        self.options = options
-        self.thread = threading.Thread(target=self.run, args=(), kwargs={})
-        self.thread.daemon = True
+        self.usb_handler = usb_handler
+        self.command_socket = command_socket
+        self.stopping = False
 
-    def start(self):
-        """Start new thread."""
-        self.thread.start()
+    def stop(self):
+        self.stopping = True
+        self.sock.shutdown(socket.SHUT_RD)
 
-    def run(self):
+    def __call__(self):
         """Listen on socket and interpret commands."""
-        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self.sock = sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 
         try:
-            os.remove("/tmp/cosmicpi.sock")
+            os.remove(self.command_socket)
         except OSError:
             pass
 
-        sock.bind("/tmp/cosmicpi.sock")
+        sock.bind(self.command_socket)
         sock.listen(1)
-        log.info("Listening for commands on local socket")
+        log.info('Listening for commands on local socket')
 
-        while True:
+        while not self.stopping:
             conn, addr = sock.accept()
-
             cmd = conn.recv(1024)
             if not cmd:
                 break
@@ -112,7 +110,7 @@ class CommandHandler(object):
                         "Humidity......: temperature:%s humidity:%s\n"
                         "Vibration.....: direction:%s count:%s\n"
                         "MONITOR STATUS\n"
-                        "USB device....: %s\n"
+                        "usb_handler device....: %s\n"
                         "Remote........: Ip:%s Port:%s UdpFlag:%s\n"
                         "Vibration.....: Sent:%d Flag:%s\n"
                         "WeatherStation: Flag:%s\n"
@@ -129,7 +127,7 @@ class CommandHandler(object):
                         bmp["temperature"], bmp["pressure"], bmp["altitude"],
                         htu["temperature"], htu["humidity"],
                         vib["direction"], vib["count"],
-                        self.options.usb['device'],
+                        self.options.usb_handler['device'],
                         self.options.broker['host'],
                         self.options.broker['port'],
                         self.options.broker['enabled'],
@@ -139,38 +137,35 @@ class CommandHandler(object):
                         self.detector.events, self.options.logging['enabled'],
                     )
                 elif cmd == 'u':
-                    if self.usb.enabled:
-                        self.usb.disable()
+                    if self.usb_handler.enabled:
+                        self.usb_handler.disable()
                     else:
-                        self.usb.enable()
-                    response = (
-                        "USB: %s" %
-                        ('enabled' if self.usb.enabled else 'disabled'))
+                        self.usb_handler.enable()
+                    response = 'usb_handler: {0}'.format(
+                        'enabled' if self.usb_handler.enabled else 'disabled'
+                    )
 
                 elif cmd == 'n':
-                    if self.options.broker['enabled']:
-                        self.options.broker['enabled'] = False
-                    else:
-                        self.options.broker['enabled'] = True
-                    response = ("Send:%s\n" % self.options.broker['enabled'])
+                    self.broker = not self.broker
+                    response = 'Send:{0}\n'.format(self.broker)
 
                 elif cmd == 'l':
-                    if self.options.logging['enabled']:
-                        self.options.logging['enabled'] = False
-                    else:
-                        self.options.logging['enabled'] = True
-                    response = ("Log:%s\n" % self.options.logging['enabled'])
+                    self.logging = not self.logging
+                    response = 'Log:{0}\n'.format(self.logging)
 
                 elif cmd.startswith('arduino'):
-                    response = ("%s" % cmd)
-                    self.usb.write(cmd.upper())
+                    response = str(cmd)
+                    self.usb_handler.write(cmd.upper())
 
                 else:
                     response = ''
 
                 conn.send(response)
-
-            except Exception as e:
-                msg = "Error processing client command: %s" % e
-                log.warn(msg)
+            except Exception:
+                log.warn('Error processing client command: "{0}"'.format(cmd))
                 conn.send(msg)
+
+        try:
+            os.remove(self.command_socket)
+        except OSError:
+            pass

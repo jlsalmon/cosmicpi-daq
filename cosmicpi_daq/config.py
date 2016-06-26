@@ -20,13 +20,14 @@
 
 """Data acquisition package for reading data from CosmicPi."""
 
+from __future__ import absolute_import, print_function
+
 import argparse
-import logging
 import os
 
 import yaml
 
-log = logging.getLogger(__name__)
+from .logging import logger as log
 
 
 def get_default_config():

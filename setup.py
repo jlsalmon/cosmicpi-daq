@@ -55,6 +55,7 @@ setup_requires = [
 
 install_requires = [
     'blessings>=1.6',
+    'click>=6.0',
     'cliff>=2.1.0',
     'netifaces>=0.10.4',
     'pika>=0.10.0',
@@ -88,8 +89,7 @@ setup(
     platforms='any',
     entry_points={
         'console_scripts': {
-            'cosmicpi = cosmicpi_daq:main',
-            'cosmicpi-cli = cosmicpi_daq:cli',
+            'cosmicpi = cosmicpi_daq:cli',
         }
     },
     extras_require=extras_require,
