@@ -18,20 +18,23 @@
 # Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston,
 # MA 02111-1307, USA.
 
+"""Test CLI execution."""
 
-include *.conf
-include *.rst
-include *.sh
-include .dockerignore
-include .editorconfig
-include .tx/config
-include LICENSE
-include babel.ini
-include pytest.ini
-recursive-include cosmicpi_daq *.conf
-recursive-include cosmicpi_daq *.po *.pot *.mo
-recursive-include docs *.bat
-recursive-include docs *.py
-recursive-include docs *.rst
-recursive-include docs Makefile
-recursive-include tests *.py
+import os
+import signal
+import subprocess
+import sys
+import time
+
+
+def test_run():
+    cmd = 'cosmicpi start'
+    app = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                           preexec_fn=os.setsid, shell=True)
+    time.sleep(5)
+
+    cmd = 'cosmicpi status'
+    output = subprocess.check_output(cmd, shell=True)
+    assert 'OK' in str(output)
+
+    os.killpg(app.pid, signal.SIGTERM)

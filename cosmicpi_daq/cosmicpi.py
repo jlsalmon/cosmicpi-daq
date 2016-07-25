@@ -68,6 +68,7 @@ def cli(ctx, config, debug):
 
     ctx.obj['DEBUG'] = debug
 
+
 @cli.command()
 @click.option('--command-socket', type=click.Path(),
               default='cosmicpi-daq.sock')
@@ -76,7 +77,7 @@ def status(ctx, command_socket):
     """Display the status of the CosmicPi detector."""
     if command_socket:
         # try to connect
-        pass
+        click.echo('OK')
 
 
 @cli.command()
@@ -90,7 +91,8 @@ def status(ctx, command_socket):
 @click.option('--command-socket', type=click.Path(),
               default='cosmicpi-daq.sock')  # FIXME add PID as extension
 @click.pass_context
-def start(ctx, broker, publish, usb, vibration, weather, cosmics, command_socket):
+def start(ctx, broker, publish, usb, vibration, weather, cosmics,
+          command_socket):
     """Start the acquisition process."""
     debug = ctx.obj.get('DEBUG', False)
     events = set()
